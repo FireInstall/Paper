@@ -1,0 +1,130 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FireInstall <kettnerl@hu-berlin.de>
+Date: Mon, 11 Dec 2023 09:52:03 +0100
+Subject: [PATCH] Added API to expose the new inventory and loot table of
+ decorated pots
+
+
+diff --git a/src/main/java/io/papermc/paper/inventory/PaperInventoryDecoratedPot.java b/src/main/java/io/papermc/paper/inventory/PaperInventoryDecoratedPot.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f355a7660c208245c95c4bad561e5c8d87ccece3
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/inventory/PaperInventoryDecoratedPot.java
+@@ -0,0 +1,37 @@
++package io.papermc.paper.inventory;
++
++import net.minecraft.world.Container;
++import org.bukkit.block.DecoratedPot;
++import org.bukkit.craftbukkit.inventory.CraftInventory;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.Nullable;
++
++public class PaperInventoryDecoratedPot extends CraftInventory implements DecoratedPotInventory {
++    public PaperInventoryDecoratedPot(final Container inventory) {
++        super(inventory);
++    }
++
++    @Override
++    public void setItem(final ItemStack item) {
++        net.minecraft.world.item.ItemStack nms = CraftItemStack.asNMSCopy(item);
++
++        if (nms.isEmpty()) {
++            this.getInventory().removeItemNoUpdate(0);
++        } else {
++            this.getInventory().setItem(0, nms);
++        }
++
++    }
++
++    @Override
++    public ItemStack getItem() {
++        return null;
++    }
++
++    @Nullable
++    @Override
++    public DecoratedPot getHolder(){
++        return (DecoratedPot) this.inventory.getOwner();
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftDecoratedPot.java b/src/main/java/org/bukkit/craftbukkit/block/CraftDecoratedPot.java
+index edaef14599b00a322e171b91ddf3a97dab095e41..3f3ad996340429575fc859b2aaf58a400d1d528f 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftDecoratedPot.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftDecoratedPot.java
+@@ -1,18 +1,24 @@
+ package org.bukkit.craftbukkit.block;
+ 
+ import com.google.common.base.Preconditions;
++import io.papermc.paper.inventory.DecoratedPotInventory; // Paper
++import io.papermc.paper.inventory.PaperInventoryDecoratedPot; // Paper
+ import java.util.EnumMap;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.stream.Collectors;
++import net.minecraft.resources.ResourceLocation; // Paper
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.block.entity.DecoratedPotBlockEntity;
++import org.bukkit.Bukkit; // Paper
+ import org.bukkit.Material;
+ import org.bukkit.Tag;
+ import org.bukkit.World;
+ import org.bukkit.block.DecoratedPot;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
++import org.bukkit.craftbukkit.util.CraftNamespacedKey; // Paper
++import org.bukkit.loot.LootTable; // Paper
+ 
+ public class CraftDecoratedPot extends CraftBlockEntityState<DecoratedPotBlockEntity> implements DecoratedPot {
+ 
+@@ -78,4 +84,50 @@ public class CraftDecoratedPot extends CraftBlockEntityState<DecoratedPotBlockEn
+     public CraftDecoratedPot copy() {
+         return new CraftDecoratedPot(this);
+     }
++
++    // Paper start - exposing inventory and loot table
++    @Override
++    public DecoratedPotInventory getSnapshotInventory() {
++        return new PaperInventoryDecoratedPot(this.getSnapshot());
++    }
++
++    @Override
++    public DecoratedPotInventory getInventory() {
++        if (!this.isPlaced()) {
++            return this.getSnapshotInventory();
++        }
++
++        return new PaperInventoryDecoratedPot(this.getTileEntity());
++    }
++
++    @Override
++    public void setLootTable(final LootTable table) {
++        this.setLootTable(table, this.getSeed());
++    }
++
++    public void setLootTable(LootTable table, long seed) { // Paper - make public since it overrides a public method
++        ResourceLocation key = (table == null) ? null : CraftNamespacedKey.toMinecraft(table.getKey());
++        this.getSnapshot().setLootTable(key, seed);
++    }
++
++    @Override
++    public LootTable getLootTable() {
++        if (this.getSnapshot().getLootTable() == null) {
++            return null;
++        }
++
++        ResourceLocation key = this.getSnapshot().getLootTable();
++        return Bukkit.getLootTable(CraftNamespacedKey.fromMinecraft(key));
++    }
++
++    @Override
++    public void setSeed(final long seed) {
++        this.getSnapshot().setLootTableSeed(seed);
++    }
++
++    @Override
++    public long getSeed() {
++        return this.getSnapshot().getLootTableSeed();
++    }
++    // Paper end - exposing inventory and loot table
+ }

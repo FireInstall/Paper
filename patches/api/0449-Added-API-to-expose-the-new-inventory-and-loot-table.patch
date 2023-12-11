@@ -1,0 +1,92 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FireInstall <kettnerl@hu-berlin.de>
+Date: Mon, 11 Dec 2023 09:52:03 +0100
+Subject: [PATCH] Added API to expose the new inventory and loot table of
+ decorated pots
+
+
+diff --git a/src/main/java/io/papermc/paper/inventory/DecoratedPotInventory.java b/src/main/java/io/papermc/paper/inventory/DecoratedPotInventory.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..fe8d5c7e240b32d6ce471a114bc6202b65204f59
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/inventory/DecoratedPotInventory.java
+@@ -0,0 +1,30 @@
++package io.papermc.paper.inventory;
++
++import org.bukkit.block.DecoratedPot;
++import org.bukkit.inventory.Inventory;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.Nullable;
++
++/**
++ * Interface to the inventory of a DecoratedPot.
++ */
++public interface DecoratedPotInventory extends Inventory {
++
++    /**
++     * Sets the decoratedPot's held item.
++     *
++     * @param item the new item
++     */
++    void setItem(ItemStack item);
++
++    /**
++     * Gets the decoratedPot's held item.
++     *
++     * @return item set in the pot
++     */
++    ItemStack getItem ();
++
++    @Nullable
++    @Override
++    DecoratedPot getHolder();
++}
+diff --git a/src/main/java/org/bukkit/block/DecoratedPot.java b/src/main/java/org/bukkit/block/DecoratedPot.java
+index a7327b769163052e3877c4808bd1bf6df2eecaa1..de2a4badea38aca2cded53c20328d153b1fd8250 100644
+--- a/src/main/java/org/bukkit/block/DecoratedPot.java
++++ b/src/main/java/org/bukkit/block/DecoratedPot.java
+@@ -1,16 +1,19 @@
+ package org.bukkit.block;
+ 
++import io.papermc.paper.inventory.DecoratedPotInventory; // Paper
+ import java.util.List;
+ import java.util.Map;
+ import org.bukkit.Material;
+ import org.bukkit.Tag;
++import org.bukkit.inventory.BlockInventoryHolder; // Paper
++import org.bukkit.loot.Lootable; // Paper
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+ /**
+  * Represents a captured state of a decorated pot.
+  */
+-public interface DecoratedPot extends TileState {
++public interface DecoratedPot extends BlockInventoryHolder, Lootable { // Paper - exposing inventory and loot table
+ 
+     /**
+      * Set the sherd on the provided side.
+@@ -53,6 +56,23 @@ public interface DecoratedPot extends TileState {
+     @NotNull
+     public List<Material> getShards();
+ 
++    // Paper start - exposing inventory and loot table
++    /**
++     * @return inventory
++     * @see Container#getInventory()
++     */
++    @NotNull
++    @Override
++    DecoratedPotInventory getInventory();
++
++    /**
++     * @return snapshot inventory
++     * @see Container#getSnapshotInventory()
++     */
++    @NotNull
++    DecoratedPotInventory getSnapshotInventory();
++    // Paper end - exposing inventory and loot table
++
+     /**
+      * A side on a decorated pot. Sides are relative to the facing state of a
+      * {@link org.bukkit.block.data.type.DecoratedPot}.
